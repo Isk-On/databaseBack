@@ -13,7 +13,7 @@ app.use(cors({
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type'],
     preflightContinue: true,  // Включить поддержку preflight запросов
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
 }));
 app.options('*', cors());  // Обработка OPTIONS запросов для всех маршрутов
 

@@ -5,18 +5,21 @@ const bodyParser = require('body-parser');
 const mysql = require('mysql2');
 const cors = require('cors');
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Настроим CORS
 app.use(cors({
-    origin: '*',  // Разрешаем запросы с этого источника
-    methods: ['GET', 'POST'],
+    origin: '*',  // Разрешаем запросы с любых источников
+    methods: ['GET', 'POST', 'OPTIONS'],  // Разрешаем GET, POST и OPTIONS методы
     allowedHeaders: ['Content-Type'],
     preflightContinue: true,  // Включить поддержку preflight запросов
-    optionsSuccessStatus: 200,
+    optionsSuccessStatus: 200
 }));
-app.options('*', cors());  // Обработка OPTIONS запросов для всех маршрутов
 
+// Обработчик для OPTIONS запросов (preflight)
+app.options('/register', (req, res) => {
+    res.status(200).end();
+});
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());

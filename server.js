@@ -9,7 +9,7 @@ const PORT = 3000;
 
 // Настроим CORS
 app.use(cors({
-    origin: 'http://127.0.0.1:5500',  // Разрешаем запросы с этого источника
+    origin: 'https://isk-on.github.io/AjouSpace/',  // Разрешаем запросы с этого источника
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));

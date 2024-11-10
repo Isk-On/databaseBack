@@ -7,17 +7,19 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Настроим CORS
 app.use(cors({
-    origin: '*',  // Разрешаем запросы с любых источников
+    origin: '*',  // Разрешаем запросы с любых источников (можно ограничить только вашими доменами)
     methods: ['GET', 'POST', 'OPTIONS'],  // Разрешаем GET, POST и OPTIONS методы
     allowedHeaders: ['Content-Type'],
-    preflightContinue: true,  // Включить поддержку preflight запросов
-    optionsSuccessStatus: 200
+    preflightContinue: true,  // Поддержка preflight запросов
+    optionsSuccessStatus: 200,
 }));
 
-// Обработчик для OPTIONS запросов (preflight)
-app.options('/register', (req, res) => {
+// Обработчик для OPTIONS запросов (preflight) для всех маршрутов
+app.options('*', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
     res.status(200).end();
 });
 

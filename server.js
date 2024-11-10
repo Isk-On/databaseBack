@@ -11,8 +11,12 @@ const PORT = 3000;
 app.use(cors({
     origin: '*',  // Разрешаем запросы с этого источника
     methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type']
+    allowedHeaders: ['Content-Type'],
+    preflightContinue: true,  // Включить поддержку preflight запросов
+    optionsSuccessStatus: 200
 }));
+app.options('*', cors());  // Обработка OPTIONS запросов для всех маршрутов
+
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());

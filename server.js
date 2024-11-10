@@ -9,7 +9,7 @@ const PORT = 3000;
 
 // Настроим CORS
 app.use(cors({
-    origin: 'https://isk-on.github.io',  // Разрешаем запросы с этого источника
+    origin: '*',  // Разрешаем запросы с этого источника
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));

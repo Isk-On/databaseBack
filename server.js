@@ -18,6 +18,7 @@ app.use(cors({
 
 // Обработчик для OPTIONS запросов (preflight) для всех маршрутов
 app.options('*', (req, res) => {
+    console.log('Preflight request received');
     res.header('Access-Control-Allow-Origin', 'https://isk-on.github.io');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type');

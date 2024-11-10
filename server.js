@@ -2,8 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const bodyParser = require('body-parser');
-const db = require('./config/db');
-const cors = require('cors');  // Подключаем CORS
+const mysql = require('mysql2');
+const cors = require('cors');
 const app = express();
 const PORT = 3000;
 
@@ -17,6 +17,22 @@ app.use(cors({
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(express.static('public'));
+
+// Настройки для подключения к базе данных
+const db = mysql.createConnection({
+    host: 'mysql.railway.internal',
+    user: 'root',
+    password: 'LOHGbnmcvNYlMxoRheuCZlZGGGXANkaK',
+    database: 'railway'
+});
+
+db.connect((err) => {
+    if (err) {
+        console.error('Ошибка подключения к базе данных:', err.stack);
+        return;
+    }
+    console.log('Подключение к базе данных успешно');
+});
 
 // Регистрация пользователя
 app.post('/register', (req, res) => {

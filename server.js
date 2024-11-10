@@ -7,16 +7,17 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Настроим CORS
 app.use(cors({
-    origin: 'https://isk-on.github.io',  // Разрешаем запросы с любых источников (можно ограничить только вашими доменами)
+    origin: 'https://isk-on.github.io',  // Разрешаем запросы только с этого домена
     methods: ['GET', 'POST', 'OPTIONS'],  // Разрешаем GET, POST и OPTIONS методы
     allowedHeaders: ['Content-Type'],
     preflightContinue: true,  // Поддержка preflight запросов
-    optionsSuccessStatus: 200,
+    optionsSuccessStatus: 200,  // Статус ответа для успешного preflight запроса
 }));
 
 // Обработчик для OPTIONS запросов (preflight) для всех маршрутов
-app.options('https://isk-on.github.io', (req, res) => {
+app.options('*', (req, res) => {
     res.header('Access-Control-Allow-Origin', 'https://isk-on.github.io');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type');

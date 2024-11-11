@@ -28,7 +28,7 @@ app.use(express.static('public'));
 const db = mysql.createConnection({
     host: 'mysql.railway.internal',
     user: 'root',
-    password: 'KUrchNknSUajNvUkDdYMVupDqwDHIcYm',
+    password: 'uuhGLTdVGbFyrlAuhTpdKTeVxSWYpSCQ',
     database: 'railway'
 });
 

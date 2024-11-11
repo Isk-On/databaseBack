@@ -41,7 +41,7 @@ db.connect((err) => {
 });
 
 // Регистрация пользователя
-app.options('/register', (req, res) => {
+app.post('/register', (req, res) => {
     const { username, password } = req.body;
 
     bcrypt.hash(password, 10, (err, hashedPassword) => {

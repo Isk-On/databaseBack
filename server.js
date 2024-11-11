@@ -31,7 +31,7 @@ app.use(express.static('public'));
 
 // Настройки для подключения к базе данных
 const db = mysql.createConnection({
-    host: 'mysql.railway.internal',
+    host: '0.0.0.0',
     user: 'root',
     password: 'LOHGbnmcvNYlMxoRheuCZlZGGGXANkaK',
     database: 'railway'

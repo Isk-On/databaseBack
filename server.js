@@ -9,20 +9,15 @@ const PORT = process.env.PORT || 3000;
 
 // Настроим CORS
 app.use(cors({
-    origin: 'https://isk-on.github.io',  // Разрешаем запросы только с этого домена
-    methods: ['GET', 'POST', 'OPTIONS'],  // Разрешаем GET, POST и OPTIONS методы
-    allowedHeaders: ['Content-Type'],
-    preflightContinue: true,  // Поддержка preflight запросов
-    optionsSuccessStatus: 200,  // Статус ответа для успешного preflight запроса
+  origin: 'https://isk-on.github.io',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+  preflightContinue: false,
+  optionsSuccessStatus: 200,
 }));
 
-// Обработчик для OPTIONS запросов (preflight) для всех маршрутов
 app.options('*', (req, res) => {
-    console.log('Preflight request received');
-    res.header('Access-Control-Allow-Origin', 'https://isk-on.github.io');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-    res.status(200).end();
+  res.sendStatus(200);
 });
 
 app.use(bodyParser.urlencoded({ extended: false }));

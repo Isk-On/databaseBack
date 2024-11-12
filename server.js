@@ -96,7 +96,7 @@ const uploadAvatar = multer({ storage: storageAvatar });
 // Роут для регистрации
 app.post('/register', uploadAvatar.single('avatar'), (req, res) => {
     const { username, password } = req.body;
-    const avatarPath = req.file ? req.file.path : null;
+    const avatarPath = req.file ? req.file.path : `data/avatars/anonymous.png`;
 
     const checkUserQuery = 'SELECT * FROM users WHERE username = ?';
     db.query(checkUserQuery, [username], (err, result) => {

@@ -7,10 +7,22 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = "lox";
+
+
+// Проверка наличия папок data и data/avatars
+const directories = ['data', 'data/avatars'];
+directories.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`Папка ${dir} создана`);
+    }
+});
+
 
 // app.use(cors({
 //     origin: 'http://127.0.0.1:5500',

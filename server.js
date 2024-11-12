@@ -67,6 +67,7 @@ app.get('/events', (req, res) => {
     });
 });
 
+const storagePhoto = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, './data/'); // Папка для сохранения изображений
     },

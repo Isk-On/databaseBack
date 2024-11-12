@@ -13,8 +13,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = "lox";
 
-
-// Проверка наличия папок data и data/avatars
 const directories = ['data', 'data/avatars'];
 directories.forEach(dir => {
     if (!fs.existsSync(dir)) {
@@ -23,15 +21,8 @@ directories.forEach(dir => {
     }
 });
 
-
-// app.use(cors({
-//     origin: 'http://127.0.0.1:5500',
-//     methods: ['GET', 'POST', 'OPTIONS'],
-//     allowedHeaders: ['Content-Type', 'Authorization'],
-// }));
-
 app.use(cors({
-    origin: 'https://isk-on.github.io',
+    origin: process.env.ORIGIN,
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -40,10 +31,10 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 const db = mysql.createConnection({
-    host: 'mysql.railway.internal',
-    user: 'root',
-    password: 'uuhGLTdVGbFyrlAuhTpdKTeVxSWYpSCQ',
-    database: 'railway'
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
 });
 
 db.connect((err) => {

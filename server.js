@@ -67,8 +67,30 @@ app.get('/events', (req, res) => {
     });
 });
 
+    destination: (req, file, cb) => {
+        cb(null, './data/'); // Папка для сохранения изображений
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname)); // Уникальное имя файла
+    }
+});
+
+const storageAvatar = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, './data/avatars'); // Папка для сохранения изображений
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname)); // Уникальное имя файла
+    }
+});
+
+const upload = multer({ storage: storagePhoto });
+const uploadAvatar = multer({ storage: storageAvatar });
+
 // Роут для регистрации
-app.post('/register', upload.single('image'), (req, res) => {
+app.post('/register', uploadAvatar.single('image'), (req, res) => {
     const { username, password } = req.body;
     const avatarPath = req.file ? req.file.path : null;
 
@@ -146,29 +168,6 @@ function authenticate(req, res, next) {
         next();
     });
 }
-
-const storagePhoto = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, './data/'); // Папка для сохранения изображений
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname)); // Уникальное имя файла
-    }
-});
-
-const storageAvatar = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, './data/avatars'); // Папка для сохранения изображений
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname)); // Уникальное имя файла
-    }
-});
-
-const upload = multer({ storage: storagePhoto });
-const uploadAvatar = multer({ storage: storageAvatar });
 
 // Обработка загрузки изображения и сообщения
 app.post('/postMessageWithImage', authenticate, upload.single('image'), (req, res) => {

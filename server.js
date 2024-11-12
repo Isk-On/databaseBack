@@ -68,8 +68,10 @@ app.get('/events', (req, res) => {
 });
 
 // Роут для регистрации
-app.post('/register', (req, res) => {
+app.post('/register', upload.single('image'), (req, res) => {
     const { username, password } = req.body;
+    const avatarPath = req.file ? req.file.path : null;
+
     const checkUserQuery = 'SELECT * FROM users WHERE username = ?';
     db.query(checkUserQuery, [username], (err, result) => {
         if (err) {
@@ -86,8 +88,8 @@ app.post('/register', (req, res) => {
                 return res.status(500).send('Ошибка сервера');
             }
 
-            const query = 'INSERT INTO users (username, password) VALUES (?, ?)';
-            db.query(query, [username, hashedPassword], (err, result) => {
+            const query = 'INSERT INTO users (username, password, avatar) VALUES (?, ?, ?)';
+            db.query(query, [username, hashedPassword, avatarPath], (err, result) => {
                 if (err) {
                     console.error(err);
                     return res.status(500).send('Ошибка при регистрации');
@@ -145,8 +147,7 @@ function authenticate(req, res, next) {
     });
 }
 
-// Настройка хранилища для сохранения изображений
-const storage = multer.diskStorage({
+const storagePhoto = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, './data/'); // Папка для сохранения изображений
     },
@@ -156,14 +157,24 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ storage: storage });
+const storageAvatar = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, './data/avatars'); // Папка для сохранения изображений
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname)); // Уникальное имя файла
+    }
+});
+
+const upload = multer({ storage: storagePhoto });
+const uploadAvatar = multer({ storage: storageAvatar });
 
 // Обработка загрузки изображения и сообщения
 app.post('/postMessageWithImage', authenticate, upload.single('image'), (req, res) => {
     const { message } = req.body;
     const imagePath = req.file ? req.file.path : null;
 
-    // Вставка сообщения с изображением в базу данных
     const query = 'INSERT INTO wall_messages (user_id, message, image) VALUES (?, ?, ?)';
     db.query(query, [req.userId, message, imagePath], (err, result) => {
         if (err) {
@@ -171,7 +182,7 @@ app.post('/postMessageWithImage', authenticate, upload.single('image'), (req, re
             return res.status(500).send('Ошибка при добавлении сообщения');
         }
 
-        sendEventToClients(); // Уведомить клиентов о новом сообщении
+        sendEventToClients();
         res.send('Сообщение успешно добавлено');
     });
 });
@@ -179,10 +190,10 @@ app.post('/postMessageWithImage', authenticate, upload.single('image'), (req, re
 // Роут для получения сообщений с изображениями
 app.get('/getMessages', (req, res) => {
     const query = `
-        SELECT wall_messages.message, wall_messages.image, users.username, wall_messages.created_at
+        SELECT wall_messages.message, wall_messages.image, users.username, users.avatar, wall_messages.created_at
         FROM wall_messages
         JOIN users ON wall_messages.user_id = users.id
-        ORDER BY wall_messages.created_at DESC
+        ORDER BY wall_messages.created_at ASC
     `;
     db.query(query, (err, results) => {
         if (err) {
@@ -193,7 +204,8 @@ app.get('/getMessages', (req, res) => {
         // Возвращаем URL для отображения изображения
         const messagesWithUrls = results.map(msg => ({
             ...msg,
-            image: msg.image ? `https://data-base.up.railway.app/${msg.image}` : null
+            image: msg.image ? `https://data-base.up.railway.app/${msg.image}` : null,
+            avatar: msg.avatar ? `https://data-base.up.railway.app/${msg.avatar}` : null // Добавляем URL для аватара
         }));
         
         res.json(messagesWithUrls);
@@ -201,6 +213,7 @@ app.get('/getMessages', (req, res) => {
 });
 
 app.use('/data', express.static('data'));
+app.use('/avatars', express.static('data/avatars'));
 
 app.listen(PORT, () => {
     console.log(`Сервер работает на порту ${PORT}`);

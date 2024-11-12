@@ -17,7 +17,7 @@ const JWT_SECRET = "lox";
 // }));
 
 app.use(cors({
-    origin: 'https://isk-on.github.io/',
+    origin: 'https://isk-on.github.io',
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));

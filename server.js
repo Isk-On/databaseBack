@@ -5,32 +5,31 @@ const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = "lox"
+const JWT_SECRET = "lox";
 
-// Настройка CORS
+// app.use(cors({
+//     origin: 'http://127.0.0.1:5500',
+//     methods: ['GET', 'POST', 'OPTIONS'],
+//     allowedHeaders: ['Content-Type', 'Authorization'],
+// }));
+
 app.use(cors({
-    origin: 'https://isk-on.github.io', // Разрешаем доступ только с этого домена
+    origin: 'https://isk-on.github.io/',
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'], // Разрешаем заголовок Authorization
-    preflightContinue: false,
-    optionsSuccessStatus: 200,
+    allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
-app.options('*', (req, res) => {
-    res.sendStatus(200);
-});
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-// Настройки для подключения к базе данных
 const db = mysql.createConnection({
-    host: 'mysql.railway.internal',  // Укажите хост (или railway.internal для Railway)
-    user: 'root',       // Имя пользователя
-    password: 'uuhGLTdVGbFyrlAuhTpdKTeVxSWYpSCQ',  // Ваш пароль
-    database: 'railway'  // Название вашей базы данных
+    host: 'mysql.railway.internal',
+    user: 'root',
+    password: 'uuhGLTdVGbFyrlAuhTpdKTeVxSWYpSCQ',
+    database: 'railway'
 });
 
 db.connect((err) => {
@@ -41,11 +40,34 @@ db.connect((err) => {
     console.log('Подключение к базе данных успешно');
 });
 
+// Хранилище для подключений SSE
+const clients = [];
+
+// Функция для отправки события всем клиентам
+function sendEventToClients() {
+    clients.forEach(res => {
+        res.write(`data: update\n\n`);
+    });
+}
+
+// Роут для регистрации клиентов на получение событий через SSE
+app.get('/events', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    clients.push(res);
+
+    // Удаление клиента при разрыве соединения
+    req.on('close', () => {
+        clients.splice(clients.indexOf(res), 1);
+    });
+});
+
 // Роут для регистрации
 app.post('/register', (req, res) => {
     const { username, password } = req.body;
-
-    // Проверка, существует ли пользователь с таким именем
     const checkUserQuery = 'SELECT * FROM users WHERE username = ?';
     db.query(checkUserQuery, [username], (err, result) => {
         if (err) {
@@ -56,14 +78,12 @@ app.post('/register', (req, res) => {
             return res.status(400).send('Пользователь с таким именем уже существует');
         }
 
-        // Хеширование пароля
         bcrypt.hash(password, 10, (err, hashedPassword) => {
             if (err) {
                 console.error(err);
                 return res.status(500).send('Ошибка сервера');
             }
 
-            // Сохранение пользователя в базе данных
             const query = 'INSERT INTO users (username, password) VALUES (?, ?)';
             db.query(query, [username, hashedPassword], (err, result) => {
                 if (err) {
@@ -79,7 +99,6 @@ app.post('/register', (req, res) => {
 // Роут для авторизации
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
-
     const query = 'SELECT * FROM users WHERE username = ?';
     db.query(query, [username], (err, result) => {
         if (err) {
@@ -102,7 +121,6 @@ app.post('/login', (req, res) => {
                 return res.status(400).send('Неверный пароль');
             }
 
-            // Создание JWT токена с использованием секрета из .env файла
             const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1h' });
             res.json({ token });
         });
@@ -112,7 +130,6 @@ app.post('/login', (req, res) => {
 // Мидлвар для проверки токена
 function authenticate(req, res, next) {
     const token = req.headers['authorization'];
-
     if (!token) {
         return res.status(401).send('Отсутствует токен');
     }
@@ -126,21 +143,22 @@ function authenticate(req, res, next) {
     });
 }
 
-// Роут для добавления сообщений
+// Роут для отправки сообщения
 app.post('/postMessage', authenticate, (req, res) => {
     const { message } = req.body;
-
-    // Вставка сообщения в таблицу wall_messages
     const query = 'INSERT INTO wall_messages (user_id, message) VALUES (?, ?)';
     db.query(query, [req.userId, message], (err, result) => {
         if (err) {
             console.error(err);
             return res.status(500).send('Ошибка при добавлении сообщения');
         }
+
+        sendEventToClients(); // Уведомить клиентов о новом сообщении
         res.send('Сообщение успешно добавлено');
     });
 });
 
+// Роут для получения сообщений
 app.get('/getMessages', (req, res) => {
     const query = `
         SELECT wall_messages.message, users.username, wall_messages.created_at
@@ -153,12 +171,10 @@ app.get('/getMessages', (req, res) => {
             console.error(err);
             return res.status(500).send('Ошибка при получении сообщений');
         }
-        res.json(results);  // Отправляем список сообщений с именами пользователей
+        res.json(results);
     });
 });
 
-
-// Запуск сервера
 app.listen(PORT, () => {
     console.log(`Сервер работает на порту ${PORT}`);
 });

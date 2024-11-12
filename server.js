@@ -207,8 +207,8 @@ app.get('/getMessages', (req, res) => {
         // Возвращаем URL для отображения изображения
         const messagesWithUrls = results.map(msg => ({
             ...msg,
-            image: msg.image ? `https://data-base.up.railway.app/${msg.image}` : null,
-            avatar: msg.avatar ? `https://data-base.up.railway.app/${msg.avatar}` : null // Добавляем URL для аватара
+            image: msg.image ? `${process.env.MY_BASE}/${msg.image}` : null,
+            avatar: msg.avatar ? `${process.env.MY_BASE}/${msg.avatar}` : null // Добавляем URL для аватара
         }));
         
         res.json(messagesWithUrls);

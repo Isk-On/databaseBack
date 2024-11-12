@@ -79,7 +79,7 @@ const storagePhoto = multer.diskStorage({
 
 const storageAvatar = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, './data/avatars'); // Папка для сохранения изображений
+        cb(null, './data/avatars/'); // Папка для сохранения изображений
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

@@ -5,6 +5,8 @@ const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const multer = require('multer');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -143,11 +145,27 @@ function authenticate(req, res, next) {
     });
 }
 
-// Роут для отправки сообщения
-app.post('/postMessage', authenticate, (req, res) => {
+// Настройка хранилища для сохранения изображений
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, './data/'); // Папка для сохранения изображений
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname)); // Уникальное имя файла
+    }
+});
+
+const upload = multer({ storage: storage });
+
+// Обработка загрузки изображения и сообщения
+app.post('/postMessageWithImage', authenticate, upload.single('image'), (req, res) => {
     const { message } = req.body;
-    const query = 'INSERT INTO wall_messages (user_id, message) VALUES (?, ?)';
-    db.query(query, [req.userId, message], (err, result) => {
+    const imagePath = req.file ? req.file.path : null;
+
+    // Вставка сообщения с изображением в базу данных
+    const query = 'INSERT INTO wall_messages (user_id, message, image) VALUES (?, ?, ?)';
+    db.query(query, [req.userId, message, imagePath], (err, result) => {
         if (err) {
             console.error(err);
             return res.status(500).send('Ошибка при добавлении сообщения');
@@ -158,10 +176,10 @@ app.post('/postMessage', authenticate, (req, res) => {
     });
 });
 
-// Роут для получения сообщений
+// Роут для получения сообщений с изображениями
 app.get('/getMessages', (req, res) => {
     const query = `
-        SELECT wall_messages.message, users.username, wall_messages.created_at
+        SELECT wall_messages.message, wall_messages.image, users.username, wall_messages.created_at
         FROM wall_messages
         JOIN users ON wall_messages.user_id = users.id
         ORDER BY wall_messages.created_at DESC
@@ -171,9 +189,18 @@ app.get('/getMessages', (req, res) => {
             console.error(err);
             return res.status(500).send('Ошибка при получении сообщений');
         }
-        res.json(results);
+        
+        // Возвращаем URL для отображения изображения
+        const messagesWithUrls = results.map(msg => ({
+            ...msg,
+            image: msg.image ? `https://data-base.up.railway.app/${msg.image}` : null
+        }));
+        
+        res.json(messagesWithUrls);
     });
 });
+
+app.use('/data', express.static('data'));
 
 app.listen(PORT, () => {
     console.log(`Сервер работает на порту ${PORT}`);

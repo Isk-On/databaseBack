@@ -91,7 +91,7 @@ const upload = multer({ storage: storagePhoto });
 const uploadAvatar = multer({ storage: storageAvatar });
 
 // Роут для регистрации
-app.post('/register', uploadAvatar.single('image'), (req, res) => {
+app.post('/register', uploadAvatar.single('avatar'), (req, res) => {
     const { username, password } = req.body;
     const avatarPath = req.file ? req.file.path : null;
 

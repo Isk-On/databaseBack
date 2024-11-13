@@ -95,39 +95,43 @@ const storageAvatar = multer.diskStorage({
 const upload = multer({ storage: storagePhoto });
 const uploadAvatar = multer({ storage: storageAvatar });
 
-// Роут для регистрации
 app.post("/register", uploadAvatar.single("avatar"), (req, res) => {
-  const { username, password } = req.body;
-  const avatarPath = req.file ? req.file.path : null;
-
-  const checkUserQuery = "SELECT * FROM users WHERE username = ?";
-  db.query(checkUserQuery, [username], (err, result) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).send("Ошибка сервера");
-    }
-    if (result.length > 0) {
-      return res.status(400).send("Пользователь с таким именем уже существует");
-    }
-
-    bcrypt.hash(password, 10, (err, hashedPassword) => {
+    const { username, password } = req.body;
+    const avatarPath = req.file ? req.file.path : null;
+  
+    const checkUserQuery = "SELECT * FROM users WHERE username = ?";
+    db.query(checkUserQuery, [username], (err, result) => {
       if (err) {
         console.error(err);
         return res.status(500).send("Ошибка сервера");
       }
-
-      const query =
-        "INSERT INTO users (username, password, avatar) VALUES (?, ?, ?)";
-      db.query(query, [username, hashedPassword, avatarPath], (err, result) => {
+      if (result.length > 0) {
+        return res.status(400).send("Пользователь с таким именем уже существует");
+      }
+  
+      bcrypt.hash(password, 10, (err, hashedPassword) => {
         if (err) {
           console.error(err);
-          return res.status(500).send("Ошибка при регистрации");
+          return res.status(500).send("Ошибка сервера");
         }
-        res.send("Пользователь зарегистрирован");
+  
+        const query =
+          "INSERT INTO users (username, password, avatar) VALUES (?, ?, ?)";
+        db.query(query, [username, hashedPassword, avatarPath], (err, result) => {
+          if (err) {
+            console.error(err);
+            return res.status(500).send("Ошибка при регистрации");
+          }
+  
+          const token = jwt.sign({ userId: result.insertId }, JWT_SECRET, {
+            expiresIn: '1h',
+          });
+  
+          res.json({ message: "Пользователь зарегистрирован", token });
+        });
       });
     });
   });
-});
 
 // Роут для авторизации
 app.post("/login", (req, res) => {

@@ -32,20 +32,17 @@ app.use(
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-const db = mysql.createConnection({
+const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 });
 
-db.connect((err) => {
-  if (err) {
-    console.error("Ошибка подключения к базе данных:", err.stack);
-    return;
-  }
-  console.log("Подключение к базе данных успешно");
-});
+const promisePool = pool.promise();
 
 // Хранилище для подключений SSE
 const clients = [];
@@ -95,80 +92,67 @@ const storageAvatar = multer.diskStorage({
 const upload = multer({ storage: storagePhoto });
 const uploadAvatar = multer({ storage: storageAvatar });
 
-app.post("/register", uploadAvatar.single("avatar"), (req, res) => {
-    const { username, password } = req.body;
-    const avatarPath = req.file ? req.file.path : null;
-  
-    const checkUserQuery = "SELECT * FROM users WHERE username = ?";
-    db.query(checkUserQuery, [username], (err, result) => {
+app.post("/register", uploadAvatar.single("avatar"), async (req, res) => {
+  const { username, password } = req.body;
+  const avatarPath = req.file ? req.file.path : null;
+
+  try {
+    const [rows] = await promisePool.query("SELECT * FROM users WHERE username = ?", [username]);
+    if (rows.length > 0) {
+      return res.status(400).send("Пользователь с таким именем уже существует");
+    }
+
+    bcrypt.hash(password, 10, async (err, hashedPassword) => {
       if (err) {
         console.error(err);
         return res.status(500).send("Ошибка сервера");
       }
-      if (result.length > 0) {
-        return res.status(400).send("Пользователь с таким именем уже существует");
-      }
-  
-      bcrypt.hash(password, 10, (err, hashedPassword) => {
-        if (err) {
-          console.error(err);
-          return res.status(500).send("Ошибка сервера");
-        }
-  
-        const query =
-          "INSERT INTO users (username, password, avatar) VALUES (?, ?, ?)";
-        db.query(query, [username, hashedPassword, avatarPath], (err, result) => {
-          if (err) {
-            console.error(err);
-            return res.status(500).send("Ошибка при регистрации");
-          }
-  
-          const token = jwt.sign({ userId: result.insertId }, JWT_SECRET, {
-            expiresIn: '1h',
-          });
-  
-          res.json({ message: "Пользователь зарегистрирован", token });
-        });
+
+      const query =
+        "INSERT INTO users (username, password, avatar) VALUES (?, ?, ?)";
+      const [result] = await promisePool.query(query, [username, hashedPassword, avatarPath]);
+
+      const token = jwt.sign({ userId: result.insertId }, JWT_SECRET, {
+        expiresIn: '1h',
       });
+
+      res.json({ message: "Пользователь зарегистрирован", token });
     });
-  });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Ошибка сервера");
+  }
+});
 
 // Роут для авторизации
-app.post("/login", (req, res) => {
+
+app.post("/login", async (req, res) => {
   const { username, password } = req.body;
-  const query = "SELECT * FROM users WHERE username = ?";
-  db.query(query, [username], (err, result) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).send("Ошибка при авторизации");
-    }
+  try {
+    const [result] = await promisePool.query("SELECT * FROM users WHERE username = ?", [username]);
 
     if (result.length === 0) {
       return res.status(400).send("Пользователь не найден");
     }
 
     const user = result[0];
-    bcrypt.compare(password, user.password, (err, isMatch) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).send("Ошибка при авторизации");
-      }
+    const isMatch = await bcrypt.compare(password, user.password);
 
-      if (!isMatch) {
-        return res.status(400).send("Неверный пароль");
-      }
+    if (!isMatch) {
+      return res.status(400).send("Неверный пароль");
+    }
 
-      const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-        expiresIn: "1h",
-      });
-      res.json({ token });
-    });
-  });
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "1h" });
+    res.json({ token });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Ошибка при авторизации");
+  }
 });
 
 // Мидлвар для проверки токена
 function authenticate(req, res, next) {
-  const token = req.headers["authorization"]; // Получаем токен из заголовка
+  const token = req.headers["authorization"];
   if (!token) {
     return res.status(401).send("Отсутствует токен");
   }
@@ -182,51 +166,52 @@ function authenticate(req, res, next) {
   });
 }
 
+// Роут для добавления сообщения с изображением
 app.post(
   "/postMessageWithImage",
   authenticate,
   upload.single("image"),
-  (req, res) => {
+  async (req, res) => {
     const { message } = req.body;
     const imagePath = req.file ? req.file.path : null;
 
     const query =
       "INSERT INTO wall_messages (user_id, message, image) VALUES (?, ?, ?)";
-    db.query(query, [req.userId, message, imagePath], (err, result) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).send("Ошибка при добавлении сообщения");
-      }
-
-      sendEventToClients();
+    try {
+      const [result] = await promisePool.query(query, [req.userId, message, imagePath]);
+      sendEventToClients(); // Если есть необходимость, добавьте эту функцию
       res.send("Сообщение успешно добавлено");
-    });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send("Ошибка при добавлении сообщения");
+    }
   }
 );
 
 // Роут для получения сообщений с изображениями
-app.get("/getMessages", (req, res) => {
+app.get("/getMessages", async (req, res) => {
   const query = `
-        SELECT wall_messages.message, wall_messages.image, users.username, users.avatar, wall_messages.created_at
-        FROM wall_messages
-        JOIN users ON wall_messages.user_id = users.id
-        ORDER BY wall_messages.created_at ASC
-    `;
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).send("Ошибка при получении сообщений");
-    }
+    SELECT wall_messages.message, wall_messages.image, users.username, users.avatar, wall_messages.created_at
+    FROM wall_messages
+    JOIN users ON wall_messages.user_id = users.id
+    ORDER BY wall_messages.created_at ASC
+  `;
 
-    // Возвращаем URL для отображения изображения
+  try {
+    const [results] = await promisePool.query(query);
+
+    // Возвращаем URL для отображения изображения и аватара
     const messagesWithUrls = results.map((msg) => ({
       ...msg,
       image: msg.image ? `${process.env.MY_BASE}/${msg.image}` : null,
-      avatar: msg.avatar ? `${process.env.MY_BASE}/${msg.avatar}` : null, // Добавляем URL для аватара
+      avatar: msg.avatar ? `${process.env.MY_BASE}/${msg.avatar}` : null,
     }));
 
     res.json(messagesWithUrls);
-  });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Ошибка при получении сообщений");
+  }
 });
 
 app.use("/data", express.static("data"));

@@ -109,7 +109,7 @@ app.post("/register", uploadAvatar.single("avatar"), async (req, res) => {
       const [result] = await promisePool.query(query, [username, hashedPassword, avatarPath]);
 
       const token = jwt.sign({ userId: result.insertId }, JWT_SECRET, {
-        expiresIn: '1h',
+        expiresIn: '24h',
       });
 
       res.json({ message: "Пользователь зарегистрирован", token });

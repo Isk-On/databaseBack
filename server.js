@@ -44,17 +44,14 @@ const pool = mysql.createPool({
 
 const promisePool = pool.promise();
 
-// Хранилище для подключений SSE
 const clients = [];
 
-// Функция для отправки события всем клиентам
 function sendEventToClients() {
   clients.forEach((res) => {
     res.write(`data: update\n\n`);
   });
 }
 
-// Роут для регистрации клиентов на получение событий через SSE
 app.get("/events", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -63,7 +60,6 @@ app.get("/events", (req, res) => {
 
   clients.push(res);
 
-  // Удаление клиента при разрыве соединения
   req.on("close", () => {
     clients.splice(clients.indexOf(res), 1);
   });
@@ -71,21 +67,21 @@ app.get("/events", (req, res) => {
 
 const storagePhoto = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "./data/"); // Папка для сохранения изображений
+    cb(null, "./data/"); 
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname)); // Уникальное имя файла
+    cb(null, uniqueSuffix + path.extname(file.originalname));
   },
 });
 
 const storageAvatar = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "./data/avatars/"); // Папка для сохранения изображений
+    cb(null, "./data/avatars/"); 
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname)); // Уникальное имя файла
+    cb(null, uniqueSuffix + path.extname(file.originalname));
   },
 });
 
@@ -124,8 +120,6 @@ app.post("/register", uploadAvatar.single("avatar"), async (req, res) => {
   }
 });
 
-// Роут для авторизации
-
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -142,7 +136,7 @@ app.post("/login", async (req, res) => {
       return res.status(400).send("Неверный пароль");
     }
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "24h" });
     res.json({ token });
   } catch (err) {
     console.error(err);
@@ -150,7 +144,6 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Мидлвар для проверки токена
 function authenticate(req, res, next) {
   const token = req.headers["authorization"];
   if (!token) {
@@ -166,7 +159,6 @@ function authenticate(req, res, next) {
   });
 }
 
-// Роут для добавления сообщения с изображением
 app.post(
   "/postMessageWithImage",
   authenticate,
@@ -179,7 +171,7 @@ app.post(
       "INSERT INTO wall_messages (user_id, message, image) VALUES (?, ?, ?)";
     try {
       const [result] = await promisePool.query(query, [req.userId, message, imagePath]);
-      sendEventToClients(); // Если есть необходимость, добавьте эту функцию
+      sendEventToClients(); 
       res.send("Сообщение успешно добавлено");
     } catch (err) {
       console.error(err);
@@ -188,7 +180,6 @@ app.post(
   }
 );
 
-// Роут для получения сообщений с изображениями
 app.get("/getMessages", async (req, res) => {
   const query = `
     SELECT wall_messages.message, wall_messages.image, users.username, users.avatar, wall_messages.created_at
@@ -200,7 +191,6 @@ app.get("/getMessages", async (req, res) => {
   try {
     const [results] = await promisePool.query(query);
 
-    // Возвращаем URL для отображения изображения и аватара
     const messagesWithUrls = results.map((msg) => ({
       ...msg,
       image: msg.image ? `${process.env.MY_BASE}/${msg.image}` : null,
